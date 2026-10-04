@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api, { getErrorMessage } from '../api/client.js';
 import ProductCard from '../components/ProductCard.jsx';
 import Loader from '../components/Loader.jsx';
@@ -9,16 +9,27 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({ search: '', category: '', sort: 'newest' });
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const debounceTimer = useRef(null);
 
   useEffect(() => {
-    // NOTE: this fires a request on every keystroke - see "Debounce search" issue.
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 500);
+
+    return () => clearTimeout(debounceTimer.current);
+  }, [filters]);
+
+  useEffect(() => {
     setLoading(true);
     api
-      .get('/products', { params: filters })
+      .get('/products', { params: debouncedFilters })
       .then(({ data }) => setProducts(data))
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [filters]);
+  }, [debouncedFilters]);
 
   const update = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }));
 
